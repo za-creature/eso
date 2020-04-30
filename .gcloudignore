@@ -1,0 +1,12 @@
+/.github
+/ffmpeg
+/node_modules
+
+.*.sample
+.*ignore
+.DS_Store
+.eslintrc.yml
+.gitkeep
+LICENSE
+Makefile
+README.md

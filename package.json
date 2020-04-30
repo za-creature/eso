@@ -1,0 +1,27 @@
+{
+  "name": "eso",
+  "version": "1.0.0",
+  "description": "Trying to reach new heights, like a 🦅 in a 🚀",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/za-creature/eso.git"
+  },
+  "author": "Radu Dan",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/za-creature/eso/issues"
+  },
+  "homepage": "https://github.com/za-creature/eso#readme",
+  "devDependencies": {
+    "eslint": "^6.8.0"
+  },
+  "dependencies": {
+    "@babel/core": "^7.9.0",
+    "@babel/preset-env": "^7.9.5",
+    "@babel/register": "^7.9.0",
+    "@google-cloud/storage": "^4.7.0",
+    "aws-sdk": "^2.663.0",
+    "dotenv": "^8.2.0"
+  }
+}
