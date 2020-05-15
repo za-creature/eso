@@ -60,7 +60,7 @@ Once successfully deployed, eso will attempt to transcode any files uploaded to
 the input bucket into the configured output bucket (publicly accessible).
 Conversion status updates are sent to dynamodb if configured, with the following
 schema:
-```js
+```javascript
 {
     key: String, // the key (filename) in the input bucket
     total_segments: Number, // total number of segments or -1 on fatal error
@@ -75,7 +75,7 @@ estimated linearly from the former condition. All files transcoded from a key
 in the input bucket are stored in the output bucket using the input `key` as
 prefix. The exact mapping is:
 
-```js
+```javascript
 (key) => `${key}/index.m3u8`  // master playlist (output video url)
 (key) => `${key}/thumb.jpeg`  // thumbnail extracted from first video segment
 (key, bandwidth) => `${key}/${bandwidth}k/index.m3u8` // profile playlist
