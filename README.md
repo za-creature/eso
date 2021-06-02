@@ -2,12 +2,37 @@
 A horizontally scalable high-throughput near-realtime multirate h264 & aac
 encoding engine built on top of [ffmpeg](http://ffmpeg.org/) and
 [google cloud](https://cloud.google.com) with a sprinkle of
-[AWS](https://aws.amazon.com/dynamodb/). Produces adaptive bitrate MPEG-TS
-fragments suitable for use with a video player that supports HLS
+[AWS](https://aws.amazon.com/dynamodb/). Produces adaptive bitrate
+[MPEG-TS](https://en.wikipedia.org/wiki/MPEG_transport_stream) fragments
+suitable for use with a video player that supports
+[HLS](https://en.wikipedia.org/wiki/HTTP_Live_Streaming)
 
+## How it works
 
-## Live demo
-link
+The provided cloud function runs whenever a file is uploaded to an `input`
+bucket. On first invocation, it will generate a signed URL to the media file
+and pass that to a new instance of `ffmpeg` that splits the file into small
+consecutive video fragments into the local ramdisk, while continuously
+monitoring the stderr output for progress reports.
+
+As soon as a fragment has been completed, it is uploaded to the same input
+bucket and deleted to free up memory. This process is lossless: video frame
+data is copied verbatim and audio is decoded to pcm (a frameless audio format
+is required in order to prevent audio / video desync) using ffmpeg's internal
+[nut](https://ffmpeg.org/nut.html) container for best compatibility.
+
+Since a successfully uploaded fragment will re-trigger the cloud function, it
+is marked with custom metadata that informs the function to switch operation
+mode from input demuxing to segment transcoding. For efficiency, the transcoder
+operates in batches, producing multiple output bitrates from a single fragment
+decoding pass (constrained to a maximum total output bitrate per batch). If
+better latency is required, it is possible to adapt this step to perform a
+single transcode per invocation (for example by uploading multiple empty files
+just to spawn additional instances), though this is not currently implemented.
+
+After all the generated fragments from the input file have been uploaded, a
+playlist is uploaded to the `output` bucket and, depending on the status of the
+asynchronous segment transcoding steps, may already be playable.
 
 
 ## Installation
@@ -18,8 +43,8 @@ link
   [Functions](https://cloud.google.com/functions) enabled and two empty storage
   [Bucket](https://cloud.google.com/storage)s
 * an amazon web services account with an empty DynamoDB table (optional)
-* [`docker`](https://www.docker.com/) or a precompiled ffmpeg binary that is
-  compatible with (practically statically linked against) google's Node.js 10
+* [`docker`](https://www.docker.com/) **or** a precompiled ffmpeg executable
+  that is binary compatible with google's Node.js 10
   [cloud functions runtime](https://cloud.google.com/functions/docs/concepts/exec)
 * [`gcloud`](https://cloud.google.com/sdk/install)
 * [`make`](https://www.gnu.org/software/make/)
@@ -56,10 +81,10 @@ make deploy
 ```
 
 ## Usage
-Once successfully deployed, eso will attempt to transcode any files uploaded to
-the input bucket into the configured output bucket (publicly accessible).
-Conversion status updates are sent to dynamodb if configured, with the following
-schema:
+Once successfully deployed, eso will attempt to transcode **all files**
+uploaded to the input bucket into the configured output bucket (which is
+assumed to be publicly accessible for reading). Conversion status updates are
+sent to dynamodb if configured, with the following schema:
 ```javascript
 {
     key: String, // the key (filename) in the input bucket
@@ -70,10 +95,10 @@ schema:
 ```
 
 A `key` is ready for on-demand seekable playback after
-`segments_ready.size == total_segments`, and a progress indicator may be
-estimated linearly from the former condition. All files transcoded from a key
-in the input bucket are stored in the output bucket using the input `key` as
-prefix. The exact mapping is:
+`ready_segments.size == total_segments`, and a progress indicator for a
+sufficiently large file may be estimated linearly from the former ratio.
+All files transcoded from a key in the input bucket are stored in the output
+bucket using the input `key` as prefix. The exact mapping is:
 
 ```javascript
 (key) => `${key}/index.m3u8`  // master playlist (output video url)
@@ -117,14 +142,15 @@ scheduling and input / output video complexity.
   depending on the quality of your input files, some profiles may be encoded
   with lower quality settings or omitted altogether
 * the meta entry is created before splitting the input file, and at that time
-  it is only guaranteed to contain the `thumb` field; `segments` is created
-  after the file has been split into segments and the `ready` field is only
-  created after the first segment has been successfully transcoded
+  it is only guaranteed to contain the `thumb` field; `total_segments` is
+  created only after the file has been successfully split into segments and the
+  `ready_segments` field is only created after the first segment has been
+  successfully transcoded and uploaded to the `output` bucket
 * if you're redeploying after updating `gcloud.json`, all pending transcode
   operations will fail because the hashed private key is used to sign segment
   uploads; to avoid this, add `SECRET=some_random_secret_string_here` to `.env`
-  and it will be used as a HMAC key instead, though if you're reading this after
-  you're already live, tough luck
+  and it will be used as a HMAC key instead, though if you're only seeing this
+  after you've already went live, tough luck
 
 
 ## License: MIT
@@ -132,4 +158,4 @@ This is a tech demo, and while functional, I wouldn't call it production ready.
 Reusing code from this repository is fine by me, but the generated binaries are
 not redistributable and some codecs may be protected by patents as well. Always
 double-check with your legal team before deploying multimedia transcoding
-technologies for commercial purposes. And write some tests!
+technologies for commercial purposes!

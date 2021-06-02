@@ -52,7 +52,7 @@ export async function split_into_segments(key) {
                 if(line.match(VIDEO_REGEX)) {
                     if(match = line.match(/\s(\d+)x(\d+)[\s,]/i)) {
                         info[P_WIDTH] = match[1]|0
-                        info[P_HEIGHT] = match[2]|0    
+                        info[P_HEIGHT] = match[2]|0
                     }
                     if(match = line.match(/\s(\d+)\skb[/p]s/i))
                         info[P_BITRATE] = match[1]|0
@@ -85,7 +85,7 @@ export async function split_into_segments(key) {
             // in the (unlikely) case of backpressure from cloud storage uploads,
             // ffmpeg should start blocking once the stderr pipe buffer full,
             // though this behavior was never actually tested as cloud function
-            // to cloud storage peering is faster than ffmpeg's muxing
+            // to cloud storage peering has better throughput than ffmpeg's muxer
             if(last)
                 await upload_segment(key, last, metadata)
             last = segment
@@ -285,7 +285,7 @@ export async function convert_segment(key, segment, metadata) {
         await Promise.all(uploads.map(async ([filename, destination]) => {
             await output.upload(filename, {destination, resumable: false})
             await fs.promises.unlink(filename)
-        }))       
+        }))
     }
 
     await Promise.all([
