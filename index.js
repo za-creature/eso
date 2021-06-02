@@ -6,4 +6,4 @@ Object.assign(process.env, {
 })
 require('dotenv').config()
 require('@babel/register')
-module.exports.eso = require('./src/eso').default
+exports.eso = require('./src/eso').default
